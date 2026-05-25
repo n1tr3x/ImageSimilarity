@@ -23,6 +23,14 @@ namespace ImageSimilarity
         public double LoweRatio { get; set; } = 0.75;
         public double RansacReprojThreshold { get; set; } = 3.0;
 
+        /// <summary>
+        /// Вес inlierRatio в финальном скоринге (для total >= 30).
+        /// Остаток (1 - InlierRatioWeight) — это вклад matchStrength.
+        /// Чем выше — тем больше доверяем "качеству" матчинга по сравнению с "количеством".
+        /// Увеличение помогает случаям типа "тот же исходник + текст/градиент" дотягивать до 0.7+.
+        /// </summary>
+        public double InlierRatioWeight { get; set; } = 0.8;
+
         public HomographyResult CompareFiles(string sourcePath, string searchPath)
         {
             if (string.IsNullOrWhiteSpace(sourcePath))
@@ -100,7 +108,8 @@ namespace ImageSimilarity
                 keypoints1,
                 keypoints2,
                 goodMatches,
-                RansacReprojThreshold
+                RansacReprojThreshold,
+                InlierRatioWeight
             );
 
             return result;
@@ -198,7 +207,8 @@ namespace ImageSimilarity
             VectorOfKeyPoint kpts1,
             VectorOfKeyPoint kpts2,
             VectorOfDMatch matches,
-            double ransacReprojThreshold)
+            double ransacReprojThreshold,
+            double inlierRatioWeight)
         {
             var kps1 = kpts1.ToArray();
             var kps2 = kpts2.ToArray();
@@ -277,7 +287,8 @@ namespace ImageSimilarity
 
                     // Итог: в основном смотрим на качество (inlierRatio),
                     // немного учитываем количество (matchStrength).
-                    score = inlierRatio * 0.7 + matchStrength * 0.3;
+                    double matchWeight = 1.0 - inlierRatioWeight;
+                    score = inlierRatio * inlierRatioWeight + matchStrength * matchWeight;
                 }
             }
 
