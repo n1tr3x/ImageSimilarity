@@ -1,12 +1,12 @@
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Jobs;
 using Emgu.CV;
 using ImageSimilarity;
 
 namespace ImageSimilarityBench;
 
 [MemoryDiagnoser]
-[SimpleJob(RuntimeMoniker.Net80, warmupCount: 2, iterationCount: 5, invocationCount: 1)]
+[InProcess]
+[SimpleJob(warmupCount: 3, iterationCount: 10)]
 public class CompareBenchmarks
 {
     private ImageHomographyComparer _comparer = null!;
