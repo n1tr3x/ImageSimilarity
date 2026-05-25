@@ -12,6 +12,9 @@
     <PackageProjectUrl>https://github.com/n1tr3x/ImageSimilarity</PackageProjectUrl>
     <RepositoryUrl>https://github.com/n1tr3x/ImageSimilarity</RepositoryUrl>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
