@@ -22,6 +22,15 @@ namespace ImageSimilarity.Native
             if (_initialized)
                 return;
 
+            // На Windows полагаемся на Emgu.CV.runtime.windows — он сам кладёт
+            // cvextern.dll рядом с бинарником через runtime targets. Свой резолвер
+            // тут только мешал бы (эмбеддится только .so для linux).
+            if (OperatingSystem.IsWindows())
+            {
+                _initialized = true;
+                return;
+            }
+
             var assembly = typeof(NativeLibraryBootstrap).Assembly;
 
             // Регистрируем резолвер для всех DllImport в этой сборке

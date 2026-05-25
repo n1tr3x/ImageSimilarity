@@ -1,5 +1,6 @@
 ﻿using Emgu.CV.CvEnum;
 using Emgu.CV.Features2D;
+using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Emgu.CV;
 
@@ -30,16 +31,17 @@ namespace ImageSimilarity
             if (string.IsNullOrWhiteSpace(searchPath))
                 throw new ArgumentException("searchPath is null or empty", nameof(searchPath));
 
-            using var srcColor = CvInvoke.Imread(sourcePath);
-            using var dstColor = CvInvoke.Imread(searchPath);
+            // Грузим сразу в grayscale: меньше памяти, нет лишнего CvtColor в Preprocess.
+            using var srcMat = CvInvoke.Imread(sourcePath, ImreadModes.Grayscale);
+            using var dstMat = CvInvoke.Imread(searchPath, ImreadModes.Grayscale);
 
-            if (srcColor.IsEmpty)
+            if (srcMat.IsEmpty)
                 throw new InvalidOperationException($"Failed to load the image: {sourcePath}");
 
-            if (dstColor.IsEmpty)
+            if (dstMat.IsEmpty)
                 throw new InvalidOperationException($"Failed to load the image: {searchPath}");
 
-            return CompareMats(srcColor, dstColor);
+            return CompareMats(srcMat, dstMat);
         }
 
         public HomographyResult CompareMats(Mat srcColor, Mat dstColor)
@@ -110,47 +112,85 @@ namespace ImageSimilarity
         /// </summary>
         private static Mat PreprocessToUnifiedScale(Mat src, int targetLongSide)
         {
-            var gray = new Mat();
-            CvInvoke.CvtColor(src, gray, ColorConversion.Bgr2Gray);
+            // Принимает и BGR, и уже grayscale (например, после Imread Grayscale в CompareFiles).
+            Mat? grayOwned = null;
+            Mat gray;
+            if (src.NumberOfChannels == 1)
+            {
+                gray = src;
+            }
+            else
+            {
+                grayOwned = new Mat();
+                CvInvoke.CvtColor(src, grayOwned, ColorConversion.Bgr2Gray);
+                gray = grayOwned;
+            }
 
             int width = gray.Width;
             int height = gray.Height;
             int maxDim = Math.Max(width, height);
 
-            // вычисляем масштаб
+            // Если размер уже целевой — не дёргаем Resize.
+            if (maxDim == targetLongSide)
+            {
+                // Возвращаемый Mat должен принадлежать caller'у (он его Dispose'ит).
+                if (grayOwned != null)
+                    return grayOwned;
+                return gray.Clone();
+            }
+
             double scale = (double)targetLongSide / maxDim;
             int newW = (int)(width * scale);
             int newH = (int)(height * scale);
 
             var resized = new Mat();
             CvInvoke.Resize(gray, resized, new System.Drawing.Size(newW, newH), 0, 0, Inter.Linear);
-            gray.Dispose();
+            grayOwned?.Dispose();
             return resized;
         }
 
         private static VectorOfDMatch MatchDescriptors(Mat desc1, Mat desc2, double loweRatio)
         {
-            var good = new VectorOfDMatch();
-
             using var matcher = new BFMatcher(DistanceType.Hamming, crossCheck: false);
             using var matchesKnn = new VectorOfVectorOfDMatch();
 
             matcher.KnnMatch(desc1, desc2, matchesKnn, k: 2, null);
 
-            for (int i = 0; i < matchesKnn.Size; i++)
-            {
-                var match = matchesKnn[i];
-                if (match.Size < 2) continue;
+            // Индексатор matchesKnn[i] возвращает дешёвый wrapper над unmanaged-памятью,
+            // без копирования. ToArrayOfArray() копировал бы все ~1500 пар в managed
+            // (см. bench: даёт +120 KB allocated при околонулевом выигрыше по времени).
+            int knnSize = matchesKnn.Size;
+            // Накапливаем good matches как PointF-структуры в managed-массиве,
+            // чтобы в конце сделать ОДИН Push в VectorOfDMatch вместо new[]{m} на каждый.
+            var goodBuf = new MDMatch[knnSize];
+            int goodCount = 0;
 
-                var m1 = match[0];
-                var m2 = match[1];
+            for (int i = 0; i < knnSize; i++)
+            {
+                using var pair = matchesKnn[i];
+                if (pair.Size < 2) continue;
+
+                var m1 = pair[0];
+                var m2 = pair[1];
 
                 if (m1.Distance < loweRatio * m2.Distance)
-                {
-                    good.Push(new[] { m1 });
-                }
+                    goodBuf[goodCount++] = m1;
             }
 
+            var good = new VectorOfDMatch();
+            if (goodCount > 0)
+            {
+                if (goodCount == goodBuf.Length)
+                {
+                    good.Push(goodBuf);
+                }
+                else
+                {
+                    var trimmed = new MDMatch[goodCount];
+                    Array.Copy(goodBuf, trimmed, goodCount);
+                    good.Push(trimmed);
+                }
+            }
             return good;
         }
 
@@ -160,20 +200,29 @@ namespace ImageSimilarity
             VectorOfDMatch matches,
             double ransacReprojThreshold)
         {
-            using var pts1 = new VectorOfPointF();
-            using var pts2 = new VectorOfPointF();
-
             var kps1 = kpts1.ToArray();
             var kps2 = kpts2.ToArray();
             var matchesArray = matches.ToArray();
 
-            foreach (var m in matchesArray)
+            int total = matchesArray.Length;
+
+            // Собираем массивы PointF в managed и пушим один раз — вместо total*2 P/Invoke.
+            var p1Arr = new System.Drawing.PointF[total];
+            var p2Arr = new System.Drawing.PointF[total];
+            for (int i = 0; i < total; i++)
             {
-                pts1.Push(new[] { kps1[m.QueryIdx].Point });
-                pts2.Push(new[] { kps2[m.TrainIdx].Point });
+                var m = matchesArray[i];
+                p1Arr[i] = kps1[m.QueryIdx].Point;
+                p2Arr[i] = kps2[m.TrainIdx].Point;
             }
 
-            int total = matchesArray.Length;
+            using var pts1 = new VectorOfPointF();
+            using var pts2 = new VectorOfPointF();
+            if (total > 0)
+            {
+                pts1.Push(p1Arr);
+                pts2.Push(p2Arr);
+            }
             int inliers = 0;
             double inlierRatio = 0.0;
 
