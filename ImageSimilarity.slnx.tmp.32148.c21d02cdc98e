@@ -1,5 +1,0 @@
-<Solution>
-  <Project Path="ImageSimilarity/ImageSimilarity.csproj" />
-  <Project Path="ImageSimilarityTests/ImageSimilarityTests.csproj" />
-  <Project Path="ImageSimilarityBench/ImageSimilarityBench.csproj" />
-</Solution>
