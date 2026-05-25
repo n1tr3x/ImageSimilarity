@@ -15,6 +15,13 @@
     <Version>1.0.1</Version>
     <AssemblyVersion>1.0.1.0</AssemblyVersion>
     <FileVersion>1.0.1.0</FileVersion>
+    <!--
+      Нужно для Emgu.CV.runtime.ubuntu-x64 на .NET 8+: без UseRidGraph=true
+      RID-зависимые ресурсы (distro-specific) silently игнорируются, что приводит
+      к NU5026 в dotnet pack ("ImageSimilarity.dll was not found on disk")
+      в CI на ubuntu-runner'е. На Windows проявляется как NETSDK1206 warning.
+    -->
+    <UseRidGraph>true</UseRidGraph>
   </PropertyGroup>
 
   <ItemGroup>

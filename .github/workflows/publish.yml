@@ -83,8 +83,11 @@ jobs:
       - name: Restore
         run: dotnet restore ImageSimilarity/ImageSimilarity.csproj
 
+      - name: Build
+        run: dotnet build ImageSimilarity/ImageSimilarity.csproj -c Release --no-restore
+
       - name: Pack
-        run: dotnet pack ImageSimilarity/ImageSimilarity.csproj -c Release --no-restore -o ./artifacts
+        run: dotnet pack ImageSimilarity/ImageSimilarity.csproj -c Release --no-build -o ./artifacts
 
       - name: Push to NuGet
         run: >
