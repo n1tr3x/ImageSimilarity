@@ -12,9 +12,9 @@
     <PackageProjectUrl>https://github.com/n1tr3x/ImageSimilarity</PackageProjectUrl>
     <RepositoryUrl>https://github.com/n1tr3x/ImageSimilarity</RepositoryUrl>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>1.0.1</Version>
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
     <!--
       Нужно для Emgu.CV.runtime.ubuntu-x64 на .NET 8+: без UseRidGraph=true
       RID-зависимые ресурсы (distro-specific) silently игнорируются, что приводит
