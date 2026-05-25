@@ -160,8 +160,8 @@ namespace ImageSimilarity
             VectorOfDMatch matches,
             double ransacReprojThreshold)
         {
-            var pts1 = new VectorOfPointF();
-            var pts2 = new VectorOfPointF();
+            using var pts1 = new VectorOfPointF();
+            using var pts2 = new VectorOfPointF();
 
             var kps1 = kpts1.ToArray();
             var kps2 = kpts2.ToArray();
@@ -181,7 +181,7 @@ namespace ImageSimilarity
             {
                 using var mask = new Mat();
 
-                var homography = CvInvoke.FindHomography(
+                using var homography = CvInvoke.FindHomography(
                     pts1,
                     pts2,
                     RobustEstimationAlgorithm.Ransac,
