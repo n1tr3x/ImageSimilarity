@@ -25,14 +25,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="libcvextern.so" />
     <None Include="..\README.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="libcvextern.so">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
   </ItemGroup>
 
 	<ItemGroup>

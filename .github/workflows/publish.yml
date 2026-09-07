@@ -1,4 +1,4 @@
-name: Publish to NuGet
+﻿name: Publish to NuGet
 
 on:
   push:
@@ -42,14 +42,22 @@ jobs:
       - name: Determine bump type
         id: bump
         shell: bash
+        # Сообщение коммита и выбор из workflow_dispatch передаются через env,
+        # а НЕ подставляются в текст скрипта через ${{ }}. Иначе апостроф в
+        # сообщении ("don't") ломает синтаксис bash, а специально составленное
+        # сообщение выполняет произвольный код в этой джобе — а у неё
+        # contents: write и доступ к NUGET_API_KEY.
+        env:
+          HEAD_COMMIT_MSG: ${{ github.event.head_commit.message }}
+          DISPATCH_BUMP: ${{ inputs.bump }}
         run: |
           set -euo pipefail
           # Manual run через workflow_dispatch?
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "type=${{ inputs.bump }}" >> "$GITHUB_OUTPUT"
+            echo "type=${DISPATCH_BUMP}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          msg='${{ github.event.head_commit.message }}'
+          msg="$HEAD_COMMIT_MSG"
           if [[ "$msg" == *"[bump:major]"* ]]; then
             echo "type=major" >> "$GITHUB_OUTPUT"
           elif [[ "$msg" == *"[bump:minor]"* ]]; then
